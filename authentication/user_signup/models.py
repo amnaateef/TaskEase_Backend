@@ -1,6 +1,6 @@
 from django.db import models
 
-# Create your models here.
+# Create your models here
 
 class Expert(models.Model):
     email = models.EmailField(unique=True)
@@ -51,6 +51,15 @@ class Customer(models.Model):
         return self.email
 
 class Task(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+
     customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='tasks')
     expert = models.ForeignKey('Expert', on_delete=models.CASCADE, related_name='tasks')
     title = models.CharField(max_length=255)
@@ -74,6 +83,14 @@ class Review(models.Model):
     def __str__(self):
         return f"Review by {self.customer.firstname} on {self.expert.firstname}"
 
+class RatingHistory(models.Model):
+    expert = models.ForeignKey('Expert', on_delete=models.CASCADE)
+    rating = models.PositiveSmallIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Rating of {self.rating} for {self.expert} on {self.created_at}"
+
 class Booking(models.Model):
     customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='bookings')
     expert = models.ForeignKey('Expert', on_delete=models.CASCADE, related_name='bookings')
@@ -89,3 +106,15 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"Booking: {self.customer.firstname} → {self.expert.firstname}"
+
+class Payment(models.Model):
+    customer = models.ForeignKey('Customer', on_delete=models.CASCADE)
+    expert = models.ForeignKey('Expert', on_delete=models.CASCADE)
+    task = models.ForeignKey('Task', on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('completed', 'Completed')])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Payment of {self.amount} for {self.task.title}"
+

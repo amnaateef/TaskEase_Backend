@@ -78,11 +78,15 @@ WSGI_APPLICATION = 'authentication.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'TaskEase',  
-        'USER': 'postgres',
-        'PASSWORD': '1234',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': 'postgres',  
+        'USER': 'postgres.fxmdjuptlhhqbbqdftgs',
+        'PASSWORD': 'TaskEase1234',
+        'HOST': 'aws-0-ap-south-1.pooler.supabase.com',
+        'PORT': '6543',
+
+        'OPTIONS': {
+            'sslmode': 'require',
+        }
     }
 }
 
@@ -132,4 +136,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
+
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10, 
 }

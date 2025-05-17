@@ -1,7 +1,7 @@
 from django.shortcuts import render
 
 # Create your views here.
-
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -78,6 +78,8 @@ class ExpertSearchView(APIView):
                 ]
             except ValueError:
                 pass
-
-        serializer = ExpertSearchSerializer(experts, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        paginator = PageNumberPagination()
+        paginated_experts = paginator.paginate_queryset(experts, request)
+        serializer = ExpertSearchSerializer(paginated_experts, many=True)
+        # return Response(serializer.data, status=status.HTTP_200_OK)
+        return paginator.get_paginated_response(serializer.data)

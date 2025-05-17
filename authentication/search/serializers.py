@@ -10,7 +10,7 @@ class ExpertSearchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Expert
         fields = [
-            'id', 'full_name', 'profile_picture', 'city', 'domain',
+            'id', 'full_name', 'profile_picture', 'city', 'service_categories',
             'starting_price', 'ratings_average', 'total_reviews',
             'years_of_experience', 'availability', 'latitude', 'longitude',
             'bio', 'verified_status',
