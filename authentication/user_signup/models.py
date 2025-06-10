@@ -36,7 +36,7 @@ class Expert(models.Model):
 class Customer(models.Model):
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)
-    role = models.CharField(max_length=10, default="User")
+    role = models.CharField(max_length=10, default="Customer")
     firstname = models.CharField(max_length=100)
     lastname = models.CharField(max_length=100)
     cnic = models.CharField(max_length=50)

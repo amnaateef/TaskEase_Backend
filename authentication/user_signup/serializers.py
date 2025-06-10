@@ -17,7 +17,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = '__all__'
 
-class LoginSerializer(serializers.Serializer):
+'''class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
@@ -45,4 +45,27 @@ class LoginSerializer(serializers.Serializer):
             "access": str(refresh.access_token),
             "email": user.email,
             "role": user.role,
-        }
+        }'''
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        email = data.get('email')
+        password = data.get('password')
+        user = None
+
+        try:
+            user = Expert.objects.get(email=email)
+        except Expert.DoesNotExist:
+            try:
+                user = Customer.objects.get(email=email)
+            except Customer.DoesNotExist:
+                raise serializers.ValidationError("Invalid email or password.")
+
+        if not check_password(password, user.password):
+            raise serializers.ValidationError("Invalid email or password.")
+
+        data["user"] = user
+        return data

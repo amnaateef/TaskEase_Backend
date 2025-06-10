@@ -9,6 +9,9 @@ from rest_framework import status
 from .serializers import ExpertSerializer, CustomerSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import LoginSerializer
+from django.contrib.auth import login
+from django.contrib.sessions.models import Session
+from django.middleware.csrf import get_token
 
 
 def user_view(request):
@@ -28,7 +31,7 @@ class CreateUserAPIView(APIView):
                 serializer.save(password=hashed_password)  # Save with hashed password
                 return Response({"message": "Expert created successfully"}, status=status.HTTP_201_CREATED)
 
-        elif role == "User":
+        elif role == "Customer":
             serializer = CustomerSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save(password=hashed_password)  # Save with hashed password
@@ -40,12 +43,24 @@ class CreateUserAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class LoginView(APIView):
+'''class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
             return Response(serializer.validated_data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)'''
+
+class LoginView(APIView):
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.validated_data["user"]
+            request.session["user_id"] = user.id
+            request.session["role"] = user.role
+            return Response({
+                "message": "Login successful",
+                "email": user.email,
+                "role": user.role,
+                #"csrf_token": get_token(request)
+            }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
-
-
-
