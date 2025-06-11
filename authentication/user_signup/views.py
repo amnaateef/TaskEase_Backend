@@ -6,7 +6,11 @@ from django.contrib.auth.hashers import  make_password
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import ExpertSerializer, CustomerSerializer, TaskSerializer, ReviewSerializer
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
+from math import radians, sin, cos, sqrt, asin
+from .models import Expert, Customer, Task, Review
+from .serializers import ExpertSerializer, CustomerSerializer, TaskSerializer, ReviewSerializer, ExpertSearchSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import LoginSerializer
 from django.contrib.auth import login
@@ -70,7 +74,6 @@ class ExpertSearchView(APIView):
     def get(self, request):
         keyword = request.query_params.get("keyword", "")
         city = request.query_params.get("city", "")
-        domain = request.query_params.get("domain", "")
         price_min = request.query_params.get("price_min")
         price_max = request.query_params.get("price_max")
         rating_min = request.query_params.get("ratings_min")
@@ -82,15 +85,11 @@ class ExpertSearchView(APIView):
         if keyword:
             experts = experts.filter(
                 Q(firstname__icontains=keyword) |
-                Q(lastname__icontains=keyword) |
-                Q(domain__icontains=keyword)
+                Q(lastname__icontains=keyword)
             )
 
         if city:
             experts = experts.filter(city__iexact=city)
-
-        if domain:
-            experts = experts.filter(domain__iexact=domain)
 
         if price_min:
             try:
@@ -206,3 +205,13 @@ class TaskDetailAPIView(APIView):
         task = Task.objects.get(id=task_id)
         task.delete()
         return Response({"message": "Task deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+class ExpertTasksAPIView(APIView):
+    def get(self, request, expert_id):
+        try:
+            expert = Expert.objects.get(id=expert_id)
+            tasks = Task.objects.filter(expert=expert)
+            serializer = TaskSerializer(tasks, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Expert.DoesNotExist:
+            return Response({"error": "Expert not found"}, status=status.HTTP_404_NOT_FOUND)

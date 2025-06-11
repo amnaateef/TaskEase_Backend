@@ -2,6 +2,13 @@ from django.db import models
 
 # Create your models here
 
+class ServiceCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.name
+
 class Expert(models.Model):
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)
@@ -10,8 +17,6 @@ class Expert(models.Model):
     lastname = models.CharField(max_length=100)
     cnic = models.CharField(max_length=50)
     gender = models.CharField(max_length=10)
-     # 🔄 Updated field to allow multiple service categories
-    service_categories = models.JSONField(null=True, blank=True)
     years_of_experience = models.PositiveIntegerField()
     availability = models.TextField()
 
