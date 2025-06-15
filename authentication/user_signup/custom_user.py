@@ -12,9 +12,12 @@ class CustomUser(AbstractUser):
     cnic = models.CharField(max_length=50)
     gender = models.CharField(max_length=10)
     phone_number = models.CharField(max_length=20, null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
     city = models.CharField(max_length=100, null=True, blank=True)
     latitude = models.DecimalField(max_digits=10, decimal_places=8, null=True, blank=True)
     longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
+    bio = models.TextField(null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
 
     # Make email the username field
     USERNAME_FIELD = 'email'
