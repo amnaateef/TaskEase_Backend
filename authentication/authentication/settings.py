@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'search',
     'django_extensions',
+    'recommendation',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
