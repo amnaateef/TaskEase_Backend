@@ -1,364 +1,361 @@
 from django.shortcuts import render, redirect
-import logging
-from django.db.models import Count
-from math import radians, sin, cos, sqrt, atan2
-import traceback
 
-# Configure logging
-logger = logging.getLogger(__name__)
+#from .forms import ExpertForm, CustomerForm
 
-    #from .forms import ExpertForm, CustomerForm
-
-from django.contrib.auth.hashers import  make_password
+from django.contrib.auth.hashers import  make_password, check_password
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import (
-    ExpertSerializer, CustomerSerializer, LoginSerializer, 
-    CustomTokenObtainPairSerializer, UserSerializer, 
-    ProfileDetailSerializer, ExpertTaskSerializer, 
-    ExpertWithTasksSerializer, ProfileUpdateSerializer,
-    NearbyExpertSerializer
-)
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
+from math import radians, sin, cos, sqrt, asin
+from .models import Expert, Customer, Task, Review
+from .serializers import ExpertSerializer, CustomerSerializer, TaskSerializer, ReviewSerializer, ExpertSearchSerializer, PasswordChangeSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.permissions import IsAuthenticated
-from .models import Expert, Customer, Task
+from .serializers import LoginSerializer
+from django.contrib.auth import login
+from django.contrib.sessions.models import Session
+from django.middleware.csrf import get_token
 from django.contrib.auth import get_user_model
-from .serializers import ProfileDetailSerializer
-from .models import Task
-from .serializers import ExpertTaskSerializer
-from .serializers import ExpertWithTasksSerializer
 
 User = get_user_model()
 
 def user_view(request):
-     return render(request, 'user_form.html')
-
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
+    return render(request, 'user_form.html')
 
 class CreateUserAPIView(APIView):
     def post(self, request):
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            return Response({
-                "message": f"{user.role} created successfully.",
-                "user": UserSerializer(user).data
-            }, status=status.HTTP_201_CREATED)
+        role = request.data.get("role")
+        password = request.data.get("password")
+        
+        # Hash the password
+        hashed_password = make_password(password)
+
+        if role == "Expert":
+            serializer = ExpertSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(password=hashed_password)  # Save with hashed password
+                return Response({"message": "Expert created successfully"}, status=status.HTTP_201_CREATED)
+
+        elif role == "Customer":
+            serializer = CustomerSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(password=hashed_password)  # Save with hashed password
+                return Response({"message": "Customer created successfully"}, status=status.HTTP_201_CREATED)
+
+        else:
+            return Response({"error": "Invalid role"}, status=status.HTTP_400_BAD_REQUEST)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
-            return Response(serializer.validated_data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
-
-class UserProfileView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        try:
-            serializer = ProfileDetailSerializer(request.user)
-            logger.info(f"Profile data fetched successfully for user: {request.user.email}")
+            user = serializer.validated_data["user"]
+            request.session["user_id"] = user.id
+            request.session["role"] = user.role
             return Response({
-                "message": "Profile data retrieved successfully",
-                "user": serializer.data
+                "message": "Login successful",
+                "email": user.email,
+                "role": user.role,
+                #"csrf_token": get_token(request)
             }, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"Error fetching profile data for user {request.user.email}: {str(e)}")
-            return Response(
-                {"error": "An error occurred while fetching profile data."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
+    
+    # Expert Search and Fetching
+class ExpertSearchView(APIView):
+    def get(self, request):
+        keyword = request.query_params.get("keyword", "")
+        city = request.query_params.get("city", "")
+        price_min = request.query_params.get("price_min")
+        price_max = request.query_params.get("price_max")
+        rating_min = request.query_params.get("ratings_min")
+        user_lat = request.query_params.get("latitude")
+        user_lon = request.query_params.get("longitude")
+
+        experts = Expert.objects.all()
+
+        if keyword:
+            experts = experts.filter(
+                Q(firstname__icontains=keyword) |
+                Q(lastname__icontains=keyword)
             )
+
+        if city:
+            experts = experts.filter(city__iexact=city)
+
+        if price_min:
+            try:
+                price_min = float(price_min)
+                experts = experts.filter(starting_price__gte=price_min)
+            except ValueError:
+                pass
+
+        if price_max:
+            try:
+                price_max = float(price_max)
+                experts = experts.filter(starting_price__lte=price_max)
+            except ValueError:
+                pass
+
+        if rating_min:
+            try:
+                rating_min = float(rating_min)
+                experts = experts.filter(ratings_average__gte=rating_min)
+            except ValueError:
+                pass
+
+        if user_lat and user_lon:
+            try:
+                user_lat = float(user_lat)
+                user_lon = float(user_lon)
+                radius_km = 10
+
+                def haversine(lat1, lon1, lat2, lon2):
+                    R = 6371
+                    dlat = radians(lat2 - lat1)
+                    dlon = radians(lon2 - lon1)
+                    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+                    c = 2 * asin(sqrt(a))
+                    return R * c
+
+                experts = [e for e in experts if e.latitude and e.longitude and
+                    haversine(user_lat, user_lon, float(e.latitude), float(e.longitude)) <= radius_km]
+            except ValueError:
+                pass
+        
+        paginator = PageNumberPagination()
+        paginated_experts = paginator.paginate_queryset(experts, request)
+        serializer = ExpertSearchSerializer(paginated_experts, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+
+# Review Views for creating and listing reviews
+class ReviewCreateAPIView(APIView):
+    def post(self, request):
+        serializer = ReviewSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Review created successfully"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReviewListAPIView(APIView):
+    def get(self, request, expert_id):
+        reviews = Review.objects.filter(expert_id=expert_id)
+        serializer = ReviewSerializer(reviews, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# Profile View for fetching and updating profiles
+class ProfileView(APIView):
+    def get(self, request, user_id):
+        user = Expert.objects.get(id=user_id)  # Fetch the expert by ID (can also be Customer)
+        serializer = ExpertSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, user_id):
+        user = Expert.objects.get(id=user_id)
+        serializer = ExpertSerializer(user, data=request.data, partial=True)  # Allow partial updates
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Task Views (CRUD operations for tasks)
+class TaskCreateAPIView(APIView):
+    def post(self, request):
+        serializer = TaskSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Task created successfully"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TaskListAPIView(APIView):
+    def get(self, request):
+        tasks = Task.objects.all()
+        serializer = TaskSerializer(tasks, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class TaskDetailAPIView(APIView):
+    def get(self, request, task_id):
+        task = Task.objects.get(id=task_id)
+        serializer = TaskSerializer(task)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, task_id):
+        task = Task.objects.get(id=task_id)
+        serializer = TaskSerializer(task, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, task_id):
+        task = Task.objects.get(id=task_id)
+        task.delete()
+        return Response({"message": "Task deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+class ExpertTasksAPIView(APIView):
+    def get(self, request, expert_id):
+        try:
+            expert = Expert.objects.get(id=expert_id)
+            tasks = Task.objects.filter(expert=expert)
+            serializer = TaskSerializer(tasks, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Expert.DoesNotExist:
+            return Response({"error": "Expert not found"}, status=status.HTTP_404_NOT_FOUND)
 
 class PasswordChangeView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        try:
-            serializer = PasswordChangeSerializer(data=request.data)
-            if not serializer.is_valid():
-                logger.error(f"Password change validation failed: {serializer.errors}")
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-            user = request.user
-            if not user.check_password(serializer.validated_data['old_password']):
-                logger.warning(f"Invalid old password attempt for user: {user.email}")
-                return Response(
-                    {"old_password": "Current password is incorrect."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Set new password
-            user.set_password(serializer.validated_data['new_password'])
-            user.save()
+    def put(self, request):
+        serializer = PasswordChangeSerializer(data=request.data)
+        if serializer.is_valid():
+            old_password = serializer.validated_data['old_password']
+            new_password = serializer.validated_data['new_password']
             
-            logger.info(f"Password successfully changed for user: {user.email}")
-            return Response(
-                {"message": "Password changed successfully."},
-                status=status.HTTP_200_OK
-            )
+            # Get user from session or request
+            user_id = request.session.get('user_id')
+            if not user_id:
+                return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+            
+            try:
+                # Try to get user from both Expert and Customer models
+                try:
+                    user = Expert.objects.get(id=user_id)
+                except Expert.DoesNotExist:
+                    try:
+                        user = Customer.objects.get(id=user_id)
+                    except Customer.DoesNotExist:
+                        return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+                
+                # Verify old password
+                if not check_password(old_password, user.password):
+                    return Response({"error": "Old password is incorrect"}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Update password
+                user.password = make_password(new_password)
+                user.save()
+                
+                return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
+                
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = LoginSerializer
+
+class UserProfileView(APIView):
+    def get(self, request):
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        try:
+            try:
+                user = Expert.objects.get(id=user_id)
+            except Expert.DoesNotExist:
+                try:
+                    user = Customer.objects.get(id=user_id)
+                except Customer.DoesNotExist:
+                    return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+            serializer = ExpertSerializer(user) if isinstance(user, Expert) else CustomerSerializer(user)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
-            logger.error(f"Unexpected error during password change: {str(e)}")
-            return Response(
-                {"error": "An unexpected error occurred."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ProfileUpdateView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
     def put(self, request):
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+        
         try:
-            # Handle file upload separately
-            profile_picture = request.FILES.get('profile_picture')
-            if profile_picture:
-                # Validate file type
-                if not profile_picture.content_type.startswith('image/'):
-                    logger.error(f"Invalid file type uploaded: {profile_picture.content_type}")
-                    return Response(
-                        {"profile_picture": "Only image files are allowed."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                # Validate file size (max 5MB)
-                if profile_picture.size > 5 * 1024 * 1024:
-                    logger.error(f"File too large: {profile_picture.size} bytes")
-                    return Response(
-                        {"profile_picture": "File size must be less than 5MB."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-            # Create a mutable copy of the data
-            data = request.data.copy()
-            if profile_picture:
-                data['profile_picture'] = profile_picture
-
-            # Log the incoming data for debugging
-            logger.info(f"Updating profile for user {request.user.email} with data: {data}")
-
-            serializer = ProfileUpdateSerializer(
-                request.user,
-                data=data,
-                context={'request': request},
-                partial=True
-            )
-
-            if not serializer.is_valid():
-                logger.error(f"Profile update validation failed: {serializer.errors}")
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-            # Save the updated profile
-            updated_user = serializer.save()
+            try:
+                user = Expert.objects.get(id=user_id)
+                serializer = ExpertSerializer(user, data=request.data, partial=True)
+            except Expert.DoesNotExist:
+                try:
+                    user = Customer.objects.get(id=user_id)
+                    serializer = CustomerSerializer(user, data=request.data, partial=True)
+                except Customer.DoesNotExist:
+                    return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
             
-            logger.info(f"Profile successfully updated for user: {request.user.email}")
-            return Response({
-                "message": "Profile updated successfully",
-                "user": serializer.data
-            }, status=status.HTTP_200_OK)
-
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Unexpected error during profile update: {str(e)}\n{traceback.format_exc()}")
-            return Response(
-                {"error": f"An unexpected error occurred while updating profile: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-def calculate_distance(lat1, lon1, lat2, lon2):
-    """
-    Calculate the distance between two points using the Haversine formula
-    Returns distance in meters
-    """
-    R = 6371000  # Earth's radius in meters
-
-    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * atan2(sqrt(a), sqrt(1-a))
-    distance = R * c
-
-    return distance
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class NearbyExpertsView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
     def get(self, request):
+        user_lat = request.query_params.get("latitude")
+        user_lon = request.query_params.get("longitude")
+        radius_km = request.query_params.get("radius", 10)
+        
+        if not user_lat or not user_lon:
+            return Response({"error": "Latitude and longitude are required"}, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
-            # Check if user has location set
-            if not request.user.latitude or not request.user.longitude:
-                return Response({
-                    "error": "User location not set",
-                    "detail": "Please update your profile with your location to find nearby experts."
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Get the current user's location
-            try:
-                user_lat = float(request.user.latitude)
-                user_lon = float(request.user.longitude)
-            except (ValueError, TypeError) as e:
-                return Response({
-                    "error": "Invalid user location",
-                    "detail": "Your location coordinates are invalid. Please update your profile."
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Get all experts
-            experts = Expert.objects.all()
-
-            # Filter experts within 500 meters and calculate distances
-            nearby_experts = []
-            for expert in experts:
-                try:
-                    if expert.latitude and expert.longitude:
-                        expert_lat = float(expert.latitude)
-                        expert_lon = float(expert.longitude)
-                        
-                        distance = calculate_distance(user_lat, user_lon, expert_lat, expert_lon)
-                        
-                        if distance <= 500:  # 500 meters radius
-                            expert.distance = round(distance, 2)
-                            nearby_experts.append(expert)
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"Invalid coordinates for expert {expert.id}: {str(e)}")
-                    continue
-
-            # Sort by distance
-            nearby_experts.sort(key=lambda x: x.distance)
-
-            # Serialize the data
-            serializer = NearbyExpertSerializer(nearby_experts, many=True)
+            user_lat = float(user_lat)
+            user_lon = float(user_lon)
+            radius_km = float(radius_km)
             
-            logger.info(f"Successfully fetched {len(nearby_experts)} nearby experts for user: {request.user.email}")
-            return Response({
-                "message": f"Found {len(nearby_experts)} experts within 500 meters",
-                "experts": serializer.data
-            }, status=status.HTTP_200_OK)
-
+            def haversine(lat1, lon1, lat2, lon2):
+                R = 6371
+                dlat = radians(lat2 - lat1)
+                dlon = radians(lon2 - lon1)
+                a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+                c = 2 * asin(sqrt(a))
+                return R * c
+            
+            experts = Expert.objects.filter(latitude__isnull=False, longitude__isnull=False)
+            nearby_experts = []
+            
+            for expert in experts:
+                distance = haversine(user_lat, user_lon, float(expert.latitude), float(expert.longitude))
+                if distance <= radius_km:
+                    expert_data = ExpertSerializer(expert).data
+                    expert_data['distance_km'] = round(distance, 2)
+                    nearby_experts.append(expert_data)
+            
+            # Sort by distance
+            nearby_experts.sort(key=lambda x: x['distance_km'])
+            
+            return Response(nearby_experts, status=status.HTTP_200_OK)
+        except ValueError:
+            return Response({"error": "Invalid coordinates"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            error_traceback = traceback.format_exc()
-            logger.error(f"Error fetching nearby experts: {str(e)}\nTraceback: {error_traceback}")
-            return Response(
-                {
-                    "error": "An error occurred while fetching nearby experts.",
-                    "detail": str(e)
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ExpertTasksView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
     def get(self, request):
+        expert_id = request.session.get('user_id')
+        if not expert_id:
+            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+        
         try:
-            # Get query parameters
-            expert_id = request.query_params.get('expert_id')
-            task_status = request.query_params.get('status')
-            category = request.query_params.get('category')
-            min_price = request.query_params.get('min_price')
-            max_price = request.query_params.get('max_price')
-
-            # Start with all tasks
-            tasks = Task.objects.all()
-
-            # Apply filters if provided
-            if expert_id:
-                tasks = tasks.filter(expert_id=expert_id)
-            
-            if task_status:
-                tasks = tasks.filter(status=task_status)
-            
-            if category:
-                tasks = tasks.filter(category=category)
-            
-            if min_price:
-                tasks = tasks.filter(price__gte=min_price)
-            
-            if max_price:
-                tasks = tasks.filter(price__lte=max_price)
-
-            # Order by creation date (newest first)
-            tasks = tasks.order_by('-created_at')
-
-            # Get task statistics
-            total_tasks = tasks.count()
-            completed_tasks = tasks.filter(status='completed').count()
-            pending_tasks = tasks.filter(status='pending').count()
-            in_progress_tasks = tasks.filter(status='in_progress').count()
-
-            # Get unique experts count
-            unique_experts = tasks.values('expert').distinct().count()
-
-            # Serialize the tasks
-            serializer = ExpertTaskSerializer(tasks, many=True)
-            
-            logger.info(f"Successfully fetched {total_tasks} tasks for user: {request.user.email}")
-            return Response({
-                "message": "Tasks retrieved successfully",
-                "statistics": {
-                    "total_tasks": total_tasks,
-                    "completed_tasks": completed_tasks,
-                    "pending_tasks": pending_tasks,
-                    "in_progress_tasks": in_progress_tasks,
-                    "unique_experts": unique_experts
-                },
-                "filters_applied": {
-                    "expert_id": expert_id,
-                    "status": task_status,
-                    "category": category,
-                    "min_price": min_price,
-                    "max_price": max_price
-                },
-                "tasks": serializer.data
-            }, status=status.HTTP_200_OK)
-
+            expert = Expert.objects.get(id=expert_id)
+            tasks = Task.objects.filter(expert=expert)
+            serializer = TaskSerializer(tasks, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Expert.DoesNotExist:
+            return Response({"error": "Expert not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            error_traceback = traceback.format_exc()
-            logger.error(f"Error fetching tasks: {str(e)}\nTraceback: {error_traceback}")
-            return Response(
-                {
-                    "error": "An error occurred while fetching tasks.",
-                    "detail": str(e),
-                    "traceback": error_traceback
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ExpertTasksListView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
     def get(self, request):
-        try:
-            # Get all experts with their tasks
-            experts = Expert.objects.all()
-            
-            # Serialize the data
-            serializer = ExpertWithTasksSerializer(experts, many=True)
-            
-            logger.info(f"Successfully fetched tasks for all experts")
-            return Response({
-                "message": "Expert tasks retrieved successfully",
-                "experts": serializer.data
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            error_traceback = traceback.format_exc()
-            logger.error(f"Error fetching expert tasks: {str(e)}\nTraceback: {error_traceback}")
-            return Response(
-                {
-                    "error": "An error occurred while fetching expert tasks.",
-                    "detail": str(e)
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
+        tasks = Task.objects.all()
+        paginator = PageNumberPagination()
+        paginated_tasks = paginator.paginate_queryset(tasks, request)
+        serializer = TaskSerializer(paginated_tasks, many=True)
+        return paginator.get_paginated_response(serializer.data)
