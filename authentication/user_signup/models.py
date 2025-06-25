@@ -52,34 +52,57 @@ class Customer(models.Model):
     def __str__(self):
         return self.email
 
-class Task(models.Model):
-    STATUS_CHOICES = [
+class Service(models.Model):
+    '''STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
-    ]
+    ]'''
     
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='tasks')
+    #status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    #customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='tasks')
     expert = models.ForeignKey('Expert', on_delete=models.CASCADE, related_name='tasks')
     title = models.CharField(max_length=255)
     description = models.TextField()
-    picture = models.ImageField(upload_to='task_pictures/', null=True, blank=True)
+    #picture = models.ImageField(upload_to='task_pictures/', null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     category = models.CharField(max_length=100, default='General')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     scheduled_for = models.DateTimeField(null=True, blank=True)
+    specific_services = models.JSONField()
+    city = models.CharField(max_length=100)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    expertise_level = models.CharField(max_length=50)
+    years_of_experience = models.IntegerField()
+    client_present = models.CharField(max_length=50)
+    use_tools = models.CharField(max_length=50)
+    trial_session = models.CharField(max_length=50)
+    late_arrival = models.CharField(max_length=50)
+    same_day_cancel = models.CharField(max_length=50)
+    rescheduling = models.CharField(max_length=50)
+    partial_payment = models.CharField(max_length=50)
+    inspection = models.CharField(max_length=50)
+    currency = models.CharField(max_length=10)
+    hourly_rate = models.DecimalField(max_digits=10, decimal_places=2)
+    weekend_rate = models.DecimalField(max_digits=10, decimal_places=2)
+    bulk_discount = models.DecimalField(max_digits=10, decimal_places=2)
+    time_slots = models.JSONField()
+    cover_image = models.ImageField(upload_to="listing_covers/", null=True, blank=True)
 
     def __str__(self):
-        return f"Task: {self.title} by {self.customer.firstname}"
+        return f"Task: {self.title} by {self.expert.firstname}"
 
+class WorkImage(models.Model):
+    listing = models.ForeignKey(Service, on_delete=models.CASCADE, related_name='work_images')
+    image = models.ImageField(upload_to='listing_work_images/')
 
 class Review(models.Model):
     customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='reviews')
     expert = models.ForeignKey('Expert', on_delete=models.CASCADE, related_name='reviews')
-    task = models.ForeignKey('user_signup.Task', on_delete=models.SET_NULL, null=True, blank=True)
+    task = models.ForeignKey('user_signup.Service', on_delete=models.SET_NULL, null=True, blank=True)
 
     rating = models.PositiveSmallIntegerField()  # e.g., 1 to 5
     comment = models.TextField(null=True, blank=True)
@@ -99,7 +122,7 @@ class RatingHistory(models.Model):
 class Booking(models.Model):
     customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='bookings')
     expert = models.ForeignKey('Expert', on_delete=models.CASCADE, related_name='bookings')
-    task = models.ForeignKey('user_signup.Task', on_delete=models.CASCADE, related_name='bookings')
+    task = models.ForeignKey('user_signup.Service', on_delete=models.CASCADE, related_name='bookings')
 
     scheduled_date = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
@@ -115,7 +138,7 @@ class Booking(models.Model):
 class Payment(models.Model):
     customer = models.ForeignKey('Customer', on_delete=models.CASCADE)
     expert = models.ForeignKey('Expert', on_delete=models.CASCADE)
-    task = models.ForeignKey('Task', on_delete=models.CASCADE)
+    task = models.ForeignKey('Service', on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('completed', 'Completed')])
     created_at = models.DateTimeField(auto_now_add=True)

@@ -9,8 +9,8 @@ from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from math import radians, sin, cos, sqrt, asin
-from .models import Expert, Customer, Task, Review
-from .serializers import ExpertSerializer, CustomerSerializer, TaskSerializer, ReviewSerializer, ExpertSearchSerializer, PasswordChangeSerializer
+from .models import Expert, Customer, Service, Review
+from .serializers import ExpertSerializer, CustomerSerializer, PasswordChangeSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import LoginSerializer
 from django.contrib.auth import login
@@ -65,7 +65,7 @@ class LoginView(APIView):
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
     
     # Expert Search and Fetching
-class ExpertSearchView(APIView):
+'''class ExpertSearchView(APIView):
     def get(self, request):
         keyword = request.query_params.get("keyword", "")
         city = request.query_params.get("city", "")
@@ -129,24 +129,24 @@ class ExpertSearchView(APIView):
         paginator = PageNumberPagination()
         paginated_experts = paginator.paginate_queryset(experts, request)
         serializer = ExpertSearchSerializer(paginated_experts, many=True)
-        return paginator.get_paginated_response(serializer.data)
+        return paginator.get_paginated_response(serializer.data)'''
 
 
 # Review Views for creating and listing reviews
-class ReviewCreateAPIView(APIView):
+'''class ReviewCreateAPIView(APIView):
     def post(self, request):
         serializer = ReviewSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "Review created successfully"}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)'''
 
 
-class ReviewListAPIView(APIView):
+'''class ReviewListAPIView(APIView):
     def get(self, request, expert_id):
         reviews = Review.objects.filter(expert_id=expert_id)
         serializer = ReviewSerializer(reviews, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)'''
 
 
 # Profile View for fetching and updating profiles
@@ -166,30 +166,30 @@ class ProfileView(APIView):
 
 
 # Task Views (CRUD operations for tasks)
-class TaskCreateAPIView(APIView):
+'''class TaskCreateAPIView(APIView):
     def post(self, request):
         serializer = TaskSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "Task created successfully"}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)'''
 
 
-class TaskListAPIView(APIView):
+''''class TaskListAPIView(APIView):
     def get(self, request):
-        tasks = Task.objects.all()
+        tasks = Service.objects.all()
         serializer = TaskSerializer(tasks, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)'''
 
 
-class TaskDetailAPIView(APIView):
+'''class TaskDetailAPIView(APIView):
     def get(self, request, task_id):
-        task = Task.objects.get(id=task_id)
+        task = Service.objects.get(id=task_id)
         serializer = TaskSerializer(task)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, task_id):
-        task = Task.objects.get(id=task_id)
+        task = Service.objects.get(id=task_id)
         serializer = TaskSerializer(task, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -197,19 +197,19 @@ class TaskDetailAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, task_id):
-        task = Task.objects.get(id=task_id)
+        task = Service.objects.get(id=task_id)
         task.delete()
-        return Response({"message": "Task deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Task deleted successfully"}, status=status.HTTP_204_NO_CONTENT)'''
 
-class ExpertTasksAPIView(APIView):
+'''class ExpertTasksAPIView(APIView):
     def get(self, request, expert_id):
         try:
             expert = Expert.objects.get(id=expert_id)
-            tasks = Task.objects.filter(expert=expert)
+            tasks = Service.objects.filter(expert=expert)
             serializer = TaskSerializer(tasks, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Expert.DoesNotExist:
-            return Response({"error": "Expert not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Expert not found"}, status=status.HTTP_404_NOT_FOUND)'''
 
 class PasswordChangeView(APIView):
     def put(self, request):
@@ -336,7 +336,7 @@ class NearbyExpertsView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class ExpertTasksView(APIView):
+'''class ExpertTasksView(APIView):
     def get(self, request):
         expert_id = request.session.get('user_id')
         if not expert_id:
@@ -344,18 +344,45 @@ class ExpertTasksView(APIView):
         
         try:
             expert = Expert.objects.get(id=expert_id)
-            tasks = Task.objects.filter(expert=expert)
+            tasks = Service.objects.filter(expert=expert)
             serializer = TaskSerializer(tasks, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Expert.DoesNotExist:
             return Response({"error": "Expert not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)'''
 
-class ExpertTasksListView(APIView):
+'''class ExpertTasksListView(APIView):
     def get(self, request):
-        tasks = Task.objects.all()
+        tasks = Service.objects.all()
         paginator = PageNumberPagination()
         paginated_tasks = paginator.paginate_queryset(tasks, request)
         serializer = TaskSerializer(paginated_tasks, many=True)
-        return paginator.get_paginated_response(serializer.data)
+        return paginator.get_paginated_response(serializer.data)'''
+
+'''class ServiceCreateView(APIView):
+    def post(self, request):
+        expert_id = request.session.get('user_id')
+
+        if not expert_id:
+            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            expert = Expert.objects.get(id=expert_id)
+        except Expert.DoesNotExist:
+            return Response({"error": "Expert not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ServiceCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(expert=expert)  # Associate expert with service
+            return Response({"message": "Service created successfully"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ServiceDeleteView(APIView):
+    def delete(self, request, listing_id):
+        try:
+            service = Service.objects.get(id=listing_id)
+            service.delete()
+            return Response({"message": "Listing deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except Service.DoesNotExist:
+            return Response({"error": "Listing not found"}, status=status.HTTP_404_NOT_FOUND)'''

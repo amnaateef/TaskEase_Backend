@@ -5,10 +5,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Count, Avg
-from user_signup.models import Customer, Expert, Task,Booking
+from user_signup.models import Customer, Expert,Booking
 from .models import SearchHistory
 from user_signup.serializers import NearbyExpertSerializer
-from user_signup.views import calculate_distance  # reuse your existing distance function
+from search.views import calculate_distance  # reuse your existing distance function
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from .serializers import ExpertRecommendationSerializer

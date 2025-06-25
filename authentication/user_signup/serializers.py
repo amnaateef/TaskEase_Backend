@@ -4,7 +4,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Expert, Customer, Task
+from .models import Expert, Customer, Service,WorkImage
 import random
 import logging
 
@@ -145,7 +145,7 @@ class NearbyExpertSerializer(serializers.ModelSerializer):
                  'profile_picture', 'verified_status')
 
     def get_task_count(self, obj):
-        return Task.objects.filter(expert=obj).count()
+        return Service.objects.filter(expert=obj).count()
 
     def get_rating(self, obj):
         return float(obj.ratings_average) if obj.ratings_average else 0.0
@@ -162,9 +162,9 @@ class ExpertTaskSerializer(serializers.ModelSerializer):
     price = serializers.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
-        model = Task
+        model = Service
         fields = ('id', 'title', 'description', 'expert_details', 'status', 
-                 'created_at', 'updated_at', 'price', 'category', 'picture')
+                 'created_at', 'updated_at', 'price', 'category', 'cover_image')
 
     def get_expert_details(self, obj):
         try:
@@ -192,8 +192,8 @@ class ExpertTaskListSerializer(serializers.ModelSerializer):
     price = serializers.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
-        model = Task
-        fields = ('id', 'title', 'category', 'picture', 'price')
+        model = Service
+        fields = ('id', 'title', 'category', 'cover_image', 'price')
 
 class ExpertWithTasksSerializer(serializers.ModelSerializer):
     tasks = serializers.SerializerMethodField()
@@ -205,8 +205,32 @@ class ExpertWithTasksSerializer(serializers.ModelSerializer):
         fields = ('id', 'firstname', 'lastname', 'tasks', 'total_tasks', 'years_of_experience')
 
     def get_tasks(self, obj):
-        tasks = Task.objects.filter(expert=obj)
+        tasks = Service.objects.filter(expert=obj)
         return ExpertTaskListSerializer(tasks, many=True).data
 
     def get_total_tasks(self, obj):
-        return Task.objects.filter(expert=obj).count()    
+        return Service.objects.filter(expert=obj).count()    
+    
+
+'''class WorkImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkImage
+        fields = ['image']
+
+class ServiceCreateSerializer(serializers.ModelSerializer):
+    work_images = serializers.ListField(
+        child=serializers.ImageField(), write_only=True, required=False
+    )
+    cover_image = serializers.ImageField(required=False)
+
+    class Meta:
+        model = Service
+        exclude = []  # or list all fields manually, just do not make `expert` required in frontend
+        extra_kwargs = {'expert': {'required': False}}  # optional if using `exclude = []`
+
+    def create(self, validated_data):
+        work_images = validated_data.pop('work_images', [])
+        service = Service.objects.create(**validated_data)
+        for image in work_images:
+            WorkImage.objects.create(listing=service, image=image)
+        return service'''
