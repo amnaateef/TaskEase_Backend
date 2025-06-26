@@ -130,7 +130,7 @@ class ExpertSearchView(APIView):
         # Start with all experts
         experts = Expert.objects.all()
 
-        # Filter by customer’s city
+        # Filter by customer's city
         if customer.city:
             experts = experts.filter(city__iexact=customer.city)
 
