@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'search',
     'django_extensions',
     'recommendation',
+    'chatbot',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True

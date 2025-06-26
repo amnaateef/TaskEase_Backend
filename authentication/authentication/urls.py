@@ -31,4 +31,5 @@ urlpatterns = [
     path('api/search/', include('search.urls')),
     path('api/login/', LoginView.as_view(), name='login'),
     path('api/recommendation/', include('recommendation.urls')),
+    path('api/chatbot/', include('chatbot.urls')),
 ]
