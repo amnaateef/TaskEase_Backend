@@ -27,26 +27,56 @@ class CreateUserAPIView(APIView):
     def post(self, request):
         role = request.data.get("role")
         password = request.data.get("password")
-        
+        email = request.data.get("email")
+        firstname = request.data.get("firstname")
+        lastname = request.data.get("lastname")
+        cnic = request.data.get("cnic")
+        gender = request.data.get("gender")
+
         # Hash the password
         hashed_password = make_password(password)
 
+        # Create the CustomUser
+        user = User.objects.create(
+            email=email,
+            username=email,
+            password=hashed_password,
+            role=role,
+            first_name=firstname,
+            last_name=lastname,
+            cnic=cnic,
+            gender=gender
+        )
+
         if role == "Expert":
-            serializer = ExpertSerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save(password=hashed_password)  # Save with hashed password
-                return Response({"message": "Expert created successfully"}, status=status.HTTP_201_CREATED)
+            expert = Expert.objects.create(
+                email=email,
+                password=hashed_password,
+                role=role,
+                firstname=firstname,
+                lastname=lastname,
+                cnic=cnic,
+                gender=gender,
+                # Add other fields as needed from request.data
+            )
+            return Response({"message": "Expert created successfully"}, status=status.HTTP_201_CREATED)
 
         elif role == "Customer":
-            serializer = CustomerSerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save(password=hashed_password)  # Save with hashed password
-                return Response({"message": "Customer created successfully"}, status=status.HTTP_201_CREATED)
+            customer = Customer.objects.create(
+                email=email,
+                password=hashed_password,
+                role=role,
+                firstname=firstname,
+                lastname=lastname,
+                cnic=cnic,
+                gender=gender,
+                # Add other fields as needed from request.data
+            )
+            return Response({"message": "Customer created successfully"}, status=status.HTTP_201_CREATED)
 
         else:
+            user.delete()  # Clean up if invalid role
             return Response({"error": "Invalid role"}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(APIView):

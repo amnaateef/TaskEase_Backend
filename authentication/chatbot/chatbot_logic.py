@@ -1,12 +1,20 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
-# Load the fine-tuned model and tokenizer
-model = AutoModelForCausalLM.from_pretrained("./chatbot_model")
-tokenizer = AutoTokenizer.from_pretrained("./chatbot_model")
+model = None
+tokenizer = None
+
+def get_model():
+    global model, tokenizer
+    if model is None or tokenizer is None:
+        # Use a valid HuggingFace model name
+        model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-medium")
+        tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
+    return model, tokenizer
 
 # Function to get a response from the chatbot
 def chatbot_response(user_input, chat_history_ids=None):
+    model, tokenizer = get_model()
     new_user_input_ids = tokenizer.encode(user_input + tokenizer.eos_token, return_tensors='pt')
 
     # If there's a chat history, append it to the new input

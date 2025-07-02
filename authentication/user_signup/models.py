@@ -4,6 +4,7 @@ from .custom_user import CustomUser
 # Create your models here
 
 class Expert(models.Model):
+    # user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="expert_profile")  # REMOVED
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)
     role = models.CharField(max_length=10, default="Expert")
@@ -36,6 +37,7 @@ class Expert(models.Model):
         return self.email
 
 class Customer(models.Model):
+    # user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="customer_profile")  # REMOVED
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)
     role = models.CharField(max_length=10, default="User")
