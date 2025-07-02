@@ -17,6 +17,7 @@ from django.contrib.auth import login
 from django.contrib.sessions.models import Session
 from django.middleware.csrf import get_token
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
@@ -84,13 +85,15 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data["user"]
+            refresh = RefreshToken.for_user(user)
             request.session["user_id"] = user.id
             request.session["role"] = user.role
             return Response({
                 "message": "Login successful",
                 "email": user.email,
                 "role": user.role,
-                #"csrf_token": get_token(request)
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
     
