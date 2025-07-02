@@ -59,7 +59,15 @@ class CreateUserAPIView(APIView):
                 lastname=lastname,
                 cnic=cnic,
                 gender=gender,
-                # Add other fields as needed from request.data
+                service_categories=request.data.get("service_categories"),
+                years_of_experience=request.data.get("years_of_experience"),
+                availability=request.data.get("availability"),
+                phone_number=request.data.get("phone_number"),
+                city=request.data.get("city"),
+                longitude=request.data.get("longitude"),
+                latitude=request.data.get("latitude"),
+                starting_price=request.data.get("starting_price"),
+                # Add any other fields as needed
             )
             return Response({"message": "Expert created successfully"}, status=status.HTTP_201_CREATED)
 
@@ -72,7 +80,11 @@ class CreateUserAPIView(APIView):
                 lastname=lastname,
                 cnic=cnic,
                 gender=gender,
-                # Add other fields as needed from request.data
+                phone_number=request.data.get("phone_number"),
+                city=request.data.get("city"),
+                longitude=request.data.get("longitude"),
+                latitude=request.data.get("latitude"),
+                # Add any other fields as needed
             )
             return Response({"message": "Customer created successfully"}, status=status.HTTP_201_CREATED)
 
@@ -303,22 +315,21 @@ class UserProfileView(APIView):
                 return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
 class ProfileUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def put(self, request):
-        user_id = request.session.get('user_id')
-        if not user_id:
-            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
-        
+        user = request.user  # CustomUser from JWT
         try:
             try:
-                user = Expert.objects.get(id=user_id)
-                serializer = ExpertSerializer(user, data=request.data, partial=True)
+                expert = Expert.objects.get(email=user.email)
+                serializer = ExpertSerializer(expert, data=request.data, partial=True)
             except Expert.DoesNotExist:
                 try:
-                    user = Customer.objects.get(id=user_id)
-                    serializer = CustomerSerializer(user, data=request.data, partial=True)
+                    customer = Customer.objects.get(email=user.email)
+                    serializer = CustomerSerializer(customer, data=request.data, partial=True)
                 except Customer.DoesNotExist:
                     return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-            
+
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data, status=status.HTTP_200_OK)
