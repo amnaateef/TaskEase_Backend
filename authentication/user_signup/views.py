@@ -18,6 +18,7 @@ from django.contrib.sessions.models import Session
 from django.middleware.csrf import get_token
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
 
 User = get_user_model()
 
@@ -285,24 +286,21 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = LoginSerializer
 
 class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
-        user_id = request.session.get('user_id')
-        if not user_id:
-            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
-        
+        user = request.user  # This is the CustomUser instance from the token
         try:
-            try:
-                user = Expert.objects.get(id=user_id)
-            except Expert.DoesNotExist:
-                try:
-                    user = Customer.objects.get(id=user_id)
-                except Customer.DoesNotExist:
-                    return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-            
-            serializer = ExpertSerializer(user) if isinstance(user, Expert) else CustomerSerializer(user)
+            expert = Expert.objects.get(email=user.email)
+            serializer = ExpertSerializer(expert)
             return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Expert.DoesNotExist:
+            try:
+                customer = Customer.objects.get(email=user.email)
+                serializer = CustomerSerializer(customer)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Customer.DoesNotExist:
+                return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
 class ProfileUpdateView(APIView):
     def put(self, request):
