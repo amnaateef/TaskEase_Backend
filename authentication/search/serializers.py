@@ -3,6 +3,7 @@ from django.db import models
 # Create your models here.
 from rest_framework import serializers
 from user_signup.models import Expert
+from user_signup.models import Service
 
 class ExpertSearchSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
@@ -18,3 +19,8 @@ class ExpertSearchSerializer(serializers.ModelSerializer):
 
     def get_full_name(self, obj):
         return f"{obj.firstname} {obj.lastname}"
+
+class ServiceDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Service
+        fields = '__all__'

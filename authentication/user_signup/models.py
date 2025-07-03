@@ -55,21 +55,11 @@ class Customer(models.Model):
         return self.email
 
 class Service(models.Model):
-    '''STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('in_progress', 'In Progress'),
-        ('completed', 'Completed'),
-        ('cancelled', 'Cancelled'),
-    ]'''
     
-    #status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    #customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='tasks')
     expert = models.ForeignKey('Expert', on_delete=models.CASCADE, related_name='tasks')
-    title = models.CharField(max_length=255)
     description = models.TextField()
-    #picture = models.ImageField(upload_to='task_pictures/', null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    category = models.CharField(max_length=100, default='General')
+    selected_service = models.CharField(max_length=100, default='General')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     scheduled_for = models.DateTimeField(null=True, blank=True)

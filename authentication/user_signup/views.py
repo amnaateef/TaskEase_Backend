@@ -427,8 +427,8 @@ class ServiceCreateView(APIView):
             # Save service with the matched expert
             service = serializer.save(expert=expert)
 
-            # ✅ Append category to expert.service_categories if needed
-            category = service.category
+            # Append Selected_service to expert.service_categories if needed
+            category = service.selected_service
 
             if not expert.service_categories:
                 expert.service_categories = []  # handle None case
@@ -441,11 +441,35 @@ class ServiceCreateView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class ServiceDeleteView(APIView):
-    def delete(self, request, listing_id):
+'''class ServiceDeleteView(APIView):
+    #permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        user_id = request.session.get('user_id')
+        role = request.session.get('role')
+
+        if not user_id or role != "Expert":
+            return Response({"error": "Unauthorized. Only experts can perform this action."}, status=status.HTTP_403_FORBIDDEN)
+
+        category_to_remove = request.data.get("category")
+        if not category_to_remove:
+            return Response({"error": "Category is required."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            service = Service.objects.get(id=listing_id)
-            service.delete()
-            return Response({"message": "Listing deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
-        except Service.DoesNotExist:
-            return Response({"error": "Listing not found"}, status=status.HTTP_404_NOT_FOUND)
+            expert = Expert.objects.get(user_id=user_id)
+        except Expert.DoesNotExist:
+            return Response({"error": "Expert profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Remove category from expert's service_categories
+        if category_to_remove in expert.service_categories:
+            expert.service_categories.remove(category_to_remove)
+            expert.save()
+        else:
+            return Response({"error": f"'{category_to_remove}' not found in your service categories."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Delete all services of that category for this expert
+        deleted_count, _ = Service.objects.filter(expert=expert, category=category_to_remove).delete()
+
+        return Response({
+            "message": f"Category '{category_to_remove}' removed from your profile and {deleted_count} service(s) deleted."
+        }, status=status.HTTP_200_OK)'''

@@ -12,6 +12,8 @@ from math import radians, cos, sin, asin, sqrt,atan2
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from recommendation.models import SearchHistory
+from .serializers import ServiceDetailSerializer
+
 
 '''class ExpertSearchView(APIView):
     def get(self, request):
