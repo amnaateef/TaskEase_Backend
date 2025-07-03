@@ -20,6 +20,7 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 User = get_user_model()
 
@@ -404,38 +405,36 @@ class NearbyExpertsView(APIView):
         return paginator.get_paginated_response(serializer.data)'''
 
 class ServiceCreateView(APIView):
-    
-    parser_classes = [MultiPartParser, FormParser]  # for image/form-data support
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
-        # Get the logged-in user from session
-        user_id = request.session.get('user_id')
-
-        if not user_id:
-            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+        user = request.user
 
         try:
-            user = User.objects.get(id=user_id)
-            expert = Expert.objects.get(email=user.email)  # use email as unique identifier
-        except User.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            expert = Expert.objects.get(email=user.email)
         except Expert.DoesNotExist:
             return Response({"error": "Expert not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = ServiceCreateSerializer(data=request.data)
+        selected_service = request.data.get("selected_service")
+
+        serializer = ServiceCreateSerializer(
+            data=request.data,
+            context={"selected_service": selected_service}
+        )
+
         if serializer.is_valid():
-            # Save service with the matched expert
             service = serializer.save(expert=expert)
 
-            # Append Selected_service to expert.service_categories if needed
-            category = service.selected_service
+            # ✅ Append category safely (assumes JSONField)
+            if selected_service:
+                if not expert.service_categories:
+                    expert.service_categories = []
 
-            if not expert.service_categories:
-                expert.service_categories = []  # handle None case
-
-            if category not in expert.service_categories:
-                expert.service_categories.append(category)
-                expert.save()
+                if selected_service not in expert.service_categories:
+                    expert.service_categories.append(selected_service)
+                    expert.save()
 
             return Response({"message": "Service created successfully"}, status=status.HTTP_201_CREATED)
 
