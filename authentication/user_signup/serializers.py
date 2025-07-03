@@ -213,7 +213,7 @@ class ExpertWithTasksSerializer(serializers.ModelSerializer):
         return Service.objects.filter(expert=obj).count()    
     
 
-'''class WorkImageSerializer(serializers.ModelSerializer):
+class WorkImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkImage
         fields = ['image']
@@ -234,4 +234,4 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
         service = Service.objects.create(**validated_data)
         for image in work_images:
             WorkImage.objects.create(listing=service, image=image)
-        return service'''
+        return service

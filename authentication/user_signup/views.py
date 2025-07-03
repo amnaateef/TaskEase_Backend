@@ -10,7 +10,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from math import radians, sin, cos, sqrt, asin
 from .models import Expert, Customer, Service, Review
-from .serializers import ExpertSerializer, CustomerSerializer, PasswordChangeSerializer
+from .serializers import ExpertSerializer, CustomerSerializer, PasswordChangeSerializer,ServiceCreateSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import LoginSerializer
 from django.contrib.auth import login
@@ -19,6 +19,7 @@ from django.middleware.csrf import get_token
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 
 User = get_user_model()
 
@@ -402,22 +403,42 @@ class NearbyExpertsView(APIView):
         serializer = TaskSerializer(paginated_tasks, many=True)
         return paginator.get_paginated_response(serializer.data)'''
 
-'''class ServiceCreateView(APIView):
-    def post(self, request):
-        expert_id = request.session.get('user_id')
+class ServiceCreateView(APIView):
+    
+    parser_classes = [MultiPartParser, FormParser]  # for image/form-data support
 
-        if not expert_id:
+    def post(self, request):
+        # Get the logged-in user from session
+        user_id = request.session.get('user_id')
+
+        if not user_id:
             return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
-            expert = Expert.objects.get(id=expert_id)
+            user = User.objects.get(id=user_id)
+            expert = Expert.objects.get(email=user.email)  # use email as unique identifier
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
         except Expert.DoesNotExist:
             return Response({"error": "Expert not found"}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = ServiceCreateSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(expert=expert)  # Associate expert with service
+            # Save service with the matched expert
+            service = serializer.save(expert=expert)
+
+            # ✅ Append category to expert.service_categories if needed
+            category = service.category
+
+            if not expert.service_categories:
+                expert.service_categories = []  # handle None case
+
+            if category not in expert.service_categories:
+                expert.service_categories.append(category)
+                expert.save()
+
             return Response({"message": "Service created successfully"}, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ServiceDeleteView(APIView):
@@ -427,4 +448,4 @@ class ServiceDeleteView(APIView):
             service.delete()
             return Response({"message": "Listing deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
         except Service.DoesNotExist:
-            return Response({"error": "Listing not found"}, status=status.HTTP_404_NOT_FOUND)'''
+            return Response({"error": "Listing not found"}, status=status.HTTP_404_NOT_FOUND)
