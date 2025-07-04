@@ -214,6 +214,7 @@ class ExpertWithTasksSerializer(serializers.ModelSerializer):
     
 
 class WorkImageSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(use_url=True)
     class Meta:
         model = WorkImage
         fields = ['image']
@@ -235,3 +236,15 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
         for image in work_images:
             WorkImage.objects.create(listing=service, image=image)
         return service
+
+class ServiceSerializer(serializers.ModelSerializer):
+    work_images = WorkImageSerializer(many=True, read_only=True)
+    class Meta:
+        model = Service
+        fields = '__all__'
+
+    def get_workimage_url(self, obj):
+          request = self.context.get('request')
+          if obj.workimage and request:
+              return request.build_absolute_uri(obj.workimage.url)
+          return None

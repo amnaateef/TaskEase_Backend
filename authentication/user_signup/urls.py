@@ -9,6 +9,7 @@ from .views import NearbyExpertsView
 #from .views import ExpertTasksView
 #from .views import ExpertTasksListView
 from .views import ServiceCreateView
+from .views import ExpertServiceListView
 
 urlpatterns = [
     path('create_user/', CreateUserAPIView.as_view(), name='create_user'),
@@ -23,4 +24,5 @@ urlpatterns = [
     #path('expert-tasks-list/', ExpertTasksListView.as_view(), name='expert_tasks_list'),
     path('services/add/', ServiceCreateView.as_view(), name='add-service'),
     #path('services/<int:listing_id>/delete/', ServiceDeleteView.as_view(), name='delete-service'),
+    path('my-services/', ExpertServiceListView.as_view(), name='expert-services'),
 ]

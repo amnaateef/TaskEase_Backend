@@ -10,7 +10,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from math import radians, sin, cos, sqrt, asin
 from .models import Expert, Customer, Service, Review
-from .serializers import ExpertSerializer, CustomerSerializer, PasswordChangeSerializer,ServiceCreateSerializer
+from .serializers import ExpertSerializer, CustomerSerializer, PasswordChangeSerializer,ServiceCreateSerializer,ServiceSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import LoginSerializer
 from django.contrib.auth import login
@@ -472,3 +472,17 @@ class ServiceCreateView(APIView):
         return Response({
             "message": f"Category '{category_to_remove}' removed from your profile and {deleted_count} service(s) deleted."
         }, status=status.HTTP_200_OK)'''
+
+class ExpertServiceListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            expert = Expert.objects.get(email=request.user.email)
+        except Expert.DoesNotExist:
+            return Response({"error": "Expert not found"}, status=404)
+
+        services = Service.objects.filter(expert=expert)
+        serializer = ServiceSerializer(services, many=True)
+        return Response(serializer.data, status=200)

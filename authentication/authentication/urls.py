@@ -32,4 +32,4 @@ urlpatterns = [
     path('api/login/', LoginView.as_view(), name='login'),
     path('api/recommendation/', include('recommendation.urls')),
     path('api/chatbot/', include('chatbot.urls')),
-]
+]#+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
