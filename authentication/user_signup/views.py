@@ -21,6 +21,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from user_signup.serializers import LandingServiceSerializer
+from .serializers import ExpertSearchResultSerializer
+from decimal import Decimal
+
 
 User = get_user_model()
 
@@ -485,4 +489,48 @@ class ExpertServiceListView(APIView):
 
         services = Service.objects.filter(expert=expert)
         serializer = ServiceSerializer(services, many=True)
+        return Response(serializer.data, status=200)
+    
+class LandingPageServiceListView(APIView):
+    def get(self, request):
+        services = Service.objects.select_related('expert').all().order_by('-created_at')
+        serializer = LandingServiceSerializer(services, many=True)
+        return Response(serializer.data, status=200)
+    
+class ExpertSearchView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role != 'Customer':
+            return Response({"error": "Only customers can search experts."}, status=403)
+
+        cities = request.query_params.get('cities', '')
+        keywords = request.query_params.get('keywords', '')
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
+
+        expert_queryset = Expert.objects.all()
+
+        # Filter by cities
+        if cities:
+            city_list = [city.strip() for city in cities.split(',')]
+            expert_queryset = expert_queryset.filter(city__in=city_list)
+
+        # Filter by service keywords (JSONField)
+        if keywords:
+            keyword_list = [kw.strip().lower() for kw in keywords.split(',')]
+            keyword_filter = Q()
+            for kw in keyword_list:
+                keyword_filter |= Q(service_categories__icontains=kw)
+            expert_queryset = expert_queryset.filter(keyword_filter)
+
+        # Filter by service price (from Expert.starting_price)
+        if min_price:
+            expert_queryset = expert_queryset.filter(starting_price__gte=Decimal(min_price))
+        if max_price:
+            expert_queryset = expert_queryset.filter(starting_price__lte=Decimal(max_price))
+
+        serializer = ExpertSearchResultSerializer(expert_queryset, many=True)
         return Response(serializer.data, status=200)

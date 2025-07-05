@@ -243,8 +243,33 @@ class ServiceSerializer(serializers.ModelSerializer):
         model = Service
         fields = '__all__'
 
-    def get_workimage_url(self, obj):
+    '''def get_workimage_url(self, obj):
           request = self.context.get('request')
           if obj.workimage and request:
               return request.build_absolute_uri(obj.workimage.url)
-          return None
+          return None'''
+
+class ExpertMiniSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expert
+        fields = ['firstname','ratings_average']
+
+
+class LandingServiceSerializer(serializers.ModelSerializer):
+    expert = ExpertMiniSerializer(read_only=True)
+    work_images = WorkImageSerializer(many=True, read_only=True)
+    cover_image = serializers.ImageField(use_url=True)
+
+    class Meta:
+        model = Service
+        fields = '__all__'
+   
+    
+
+class ExpertSearchResultSerializer(serializers.ModelSerializer):
+    profile_picture = serializers.ImageField(use_url=True)
+
+    class Meta:
+        model = Expert
+        fields = ['id', 'firstname', 'city', 'service_categories', 'starting_price', 'ratings_average', 'profile_picture', 'bio']
+        
