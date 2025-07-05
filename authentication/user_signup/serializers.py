@@ -273,3 +273,18 @@ class ExpertSearchResultSerializer(serializers.ModelSerializer):
         model = Expert
         fields = ['id', 'firstname', 'city', 'service_categories', 'starting_price', 'ratings_average', 'profile_picture', 'bio']
         
+
+class ExpertDetailSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+    profile_picture = serializers.ImageField(use_url=True)
+
+    class Meta:
+        model = Expert
+        fields = ['full_name', 'email', 'role', 'cnic', 'gender', 'phone_number',
+            'city', 'latitude', 'longitude', 'service_categories',
+            'years_of_experience', 'availability', 'starting_price',
+            'ratings_average', 'total_reviews', 'profile_picture', 'bio',
+            'certifications', 'portfolio_images', 'verified_status']
+
+    def get_full_name(self, obj):
+        return f"{obj.firstname} {obj.lastname}"

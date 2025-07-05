@@ -12,6 +12,11 @@ from .views import ServiceCreateView
 from .views import ExpertServiceListView
 from .views import LandingPageServiceListView
 from .views import ExpertSearchView
+from .views import ServiceByCategoryView
+from .views import RandomUniqueCategoryServicesView
+from .views import ServiceExpertDetailView
+from .views import DeleteServiceView
+from .views import ServiceSearchView
 
 
 urlpatterns = [
@@ -30,4 +35,9 @@ urlpatterns = [
     path('my-services/', ExpertServiceListView.as_view(), name='expert-services'),
     path('landing-services/', LandingPageServiceListView.as_view(), name='landing-services'),
     path('search-experts/', ExpertSearchView.as_view(), name='search-experts'),
+    path('services-by-category/', ServiceByCategoryView.as_view(), name='services-by-category'),
+    path('random-unique-services/', RandomUniqueCategoryServicesView.as_view(), name='random-unique-services'),
+    path('service-expert/', ServiceExpertDetailView.as_view(), name='service-expert'),
+    path('delete-service/', DeleteServiceView.as_view(), name='delete-service'),
+    path('search-services/', ServiceSearchView.as_view(), name='search-services'),
 ]

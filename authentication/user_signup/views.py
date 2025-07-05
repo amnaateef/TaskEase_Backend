@@ -10,7 +10,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from math import radians, sin, cos, sqrt, asin
 from .models import Expert, Customer, Service, Review
-from .serializers import ExpertSerializer, CustomerSerializer, PasswordChangeSerializer,ServiceCreateSerializer,ServiceSerializer
+from .serializers import ExpertSerializer, CustomerSerializer, PasswordChangeSerializer,ServiceCreateSerializer,ServiceSerializer,ExpertDetailSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import LoginSerializer
 from django.contrib.auth import login
@@ -24,6 +24,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from user_signup.serializers import LandingServiceSerializer
 from .serializers import ExpertSearchResultSerializer
 from decimal import Decimal
+import random
 
 
 User = get_user_model()
@@ -534,3 +535,160 @@ class ExpertSearchView(APIView):
 
         serializer = ExpertSearchResultSerializer(expert_queryset, many=True)
         return Response(serializer.data, status=200)
+    
+
+class ServiceByCategoryView(APIView):
+    def get(self, request):
+        category_param = request.query_params.get('category', '')
+        if not category_param:
+            return Response({"error": "At least one category is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Split and clean category keywords
+        categories = [cat.strip().lower() for cat in category_param.split(',') if cat.strip()]
+
+        # Use Q for flexible OR filtering
+        category_filter = Q()
+        for cat in categories:
+            category_filter |= Q(selected_service__iexact=cat)
+
+        services = Service.objects.filter(category_filter).select_related('expert').order_by('-created_at')
+        serializer = LandingServiceSerializer(services, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class RandomUniqueCategoryServicesView(APIView):
+    def get(self, request):
+        # Get all unique service categories
+        unique_categories = Service.objects.values_list('selected_service', flat=True).distinct()
+
+        # Shuffle categories randomly
+        category_list = list(unique_categories)
+        random.shuffle(category_list)
+
+        # Pick up to 20 categories
+        selected_categories = category_list[:20]
+
+        # For each category, randomly pick 1 service
+        result_services = []
+        for cat in selected_categories:
+            services_in_cat = list(Service.objects.filter(selected_service__iexact=cat))
+            if services_in_cat:
+                result_services.append(random.choice(services_in_cat))
+
+        serializer = LandingServiceSerializer(result_services, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    
+class ServiceExpertDetailView(APIView):
+    def get(self, request):
+        service_id = request.query_params.get('service_id')
+
+        if not service_id:
+            return Response({"error": "Service ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            service = Service.objects.select_related('expert').get(id=service_id)
+            expert = service.expert
+        except Service.DoesNotExist:
+            return Response({"error": "Service not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ExpertDetailSerializer(expert)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class DeleteServiceView(APIView):
+    def delete(self, request):
+        service_id = request.query_params.get('service_id')
+        if not service_id:
+            return Response({"error": "Service ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            service = Service.objects.select_related('expert').get(id=service_id)
+        except Service.DoesNotExist:
+            return Response({"error": "Service not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        expert = service.expert
+        category_to_remove = service.selected_service.lower().strip()
+
+        service.delete()
+
+        if expert.service_categories:
+            updated_categories = [
+                cat for cat in expert.service_categories
+                if cat.lower().strip() != category_to_remove
+            ]
+            expert.service_categories = updated_categories
+            expert.save()
+
+        return Response({"message": "Service deleted and category removed from expert."}, status=status.HTTP_200_OK)
+    
+
+'''class ServiceSearchView(APIView):
+    def get(self, request):
+        cities = request.query_params.get('cities', '')        # e.g. Lahore,Karachi
+        services = request.query_params.get('services', '')    # e.g. Plumbing,Makeup
+        min_price = request.query_params.get('min_price')      # e.g. 1000
+        max_price = request.query_params.get('max_price')      # e.g. 5000
+
+        queryset = Service.objects.all()
+
+        if cities:
+            city_list = [c.strip() for c in cities.split(',')]
+            queryset = queryset.filter(city__in=city_list)
+
+        if services:
+            service_list = [s.strip().lower() for s in services.split(',')]
+            service_filter = Q()
+            for s in service_list:
+                service_filter |= Q(selected_service__iexact=s)
+            queryset = queryset.filter(service_filter)
+
+        try:
+            if min_price:
+                queryset = queryset.filter(price__gte=Decimal(min_price))
+            if max_price:
+                queryset = queryset.filter(price__lte=Decimal(max_price))
+        except:
+            return Response({"error": "Invalid price range."}, status=400)
+
+        serializer = LandingServiceSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)'''
+
+class ServiceSearchView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role != 'Customer':
+            return Response({"error": "Only customers can search services."}, status=403)
+
+        cities = request.query_params.get('cities', '')
+        services = request.query_params.get('services', '')
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
+
+        queryset = Service.objects.all()
+
+        
+        if cities:
+            city_list = [c.strip() for c in cities.split(',')]
+            queryset = queryset.filter(city__in=city_list)
+
+        
+        if services:
+            service_list = [s.strip().lower() for s in services.split(',')]
+            service_filter = Q()
+            for s in service_list:
+                service_filter |= Q(selected_service__iexact=s)
+            queryset = queryset.filter(service_filter)
+
+        
+        try:
+            if min_price:
+                queryset = queryset.filter(price__gte=Decimal(min_price))
+            if max_price:
+                queryset = queryset.filter(price__lte=Decimal(max_price))
+        except:
+            return Response({"error": "Invalid price range."}, status=400)
+
+        serializer = LandingServiceSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
