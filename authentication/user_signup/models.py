@@ -119,10 +119,19 @@ class Booking(models.Model):
     scheduled_date = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=50,
-        choices=[('booked', 'Booked'), ('cancelled', 'Cancelled'), ('completed', 'Completed')],
-        default='booked'
+        choices=[
+            ('pending', 'Pending'),
+            ('confirm', 'Confirm'),
+            ('reject', 'Reject')
+        ],
+        default='pending'
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    payment = models.CharField(
+        max_length=20,
+        choices=[('pending', 'Pending'), ('completed', 'Completed')],
+        default='pending'
+    )
 
     def __str__(self):
         return f"Booking: {self.customer.firstname} → {self.expert.firstname}"

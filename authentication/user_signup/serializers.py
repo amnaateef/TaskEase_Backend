@@ -4,9 +4,10 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Expert, Customer, Service,WorkImage
+from .models import Expert, Customer, Service,WorkImage,Booking,Payment
 import random
 import logging
+from datetime import datetime, time
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -288,3 +289,62 @@ class ExpertDetailSerializer(serializers.ModelSerializer):
 
     def get_full_name(self, obj):
         return f"{obj.firstname} {obj.lastname}"
+    
+
+class ReservationSerializer(serializers.Serializer):
+    service_id = serializers.IntegerField()
+    date = serializers.DateField()
+    time_slot = serializers.TimeField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    def validate_service_id(self, value):
+        if not Service.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Service not found.")
+        return value
+
+    def create(self, validated_data):
+        request = self.context['request']
+        customer = Customer.objects.get(email=request.user.email)
+        service = Service.objects.get(id=validated_data['service_id'])
+        expert = service.expert
+
+        scheduled_datetime = datetime.combine(validated_data['date'], validated_data['time_slot'])
+
+        # Create Booking
+        booking = Booking.objects.create(
+            customer=customer,
+            expert=expert,
+            task=service,
+            scheduled_date=scheduled_datetime,
+            payment='pending'
+        )
+
+        # Create Payment
+        Payment.objects.create(
+            customer=customer,
+            expert=expert,
+            task=service,
+            amount=validated_data['amount'],
+            payment_status='pending'
+        )
+
+        return booking
+    
+class ExpertAssignedServiceSerializer(serializers.Serializer):
+    customer_name = serializers.CharField()
+    city = serializers.CharField()
+    date_time = serializers.DateTimeField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    service_category = serializers.CharField()
+
+class BookingStatusUpdateSerializer(serializers.Serializer):
+    booking_id = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=[('confirm', 'Confirm'), ('reject', 'Reject')])
+
+    def validate(self, data):
+        try:
+            booking = Booking.objects.get(id=data['booking_id'])
+        except Booking.DoesNotExist:
+            raise serializers.ValidationError("Booking not found.")
+        data['booking'] = booking
+        return data

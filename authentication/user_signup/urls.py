@@ -17,6 +17,9 @@ from .views import RandomUniqueCategoryServicesView
 from .views import ServiceExpertDetailView
 from .views import DeleteServiceView
 from .views import ServiceSearchView
+from .views import CreateReservationView
+from .views import ExpertAssignedServicesView
+from .views import ExpertUpdateBookingStatusView
 
 
 urlpatterns = [
@@ -40,4 +43,7 @@ urlpatterns = [
     path('service-expert/', ServiceExpertDetailView.as_view(), name='service-expert'),
     path('delete-service/', DeleteServiceView.as_view(), name='delete-service'),
     path('search-services/', ServiceSearchView.as_view(), name='search-services'),
+    path('create-reservation/', CreateReservationView.as_view(), name='create-reservation'),
+    path('expert/assigned-services/', ExpertAssignedServicesView.as_view(), name='expert-assigned-services'),
+    path('expert/update-booking-status/', ExpertUpdateBookingStatusView.as_view(), name='expert-update-booking-status'),
 ]

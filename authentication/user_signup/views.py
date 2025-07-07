@@ -9,8 +9,8 @@ from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from math import radians, sin, cos, sqrt, asin
-from .models import Expert, Customer, Service, Review
-from .serializers import ExpertSerializer, CustomerSerializer, PasswordChangeSerializer,ServiceCreateSerializer,ServiceSerializer,ExpertDetailSerializer
+from .models import Expert, Customer, Service, Review,Booking
+from .serializers import ExpertSerializer, CustomerSerializer, PasswordChangeSerializer,ServiceCreateSerializer,ServiceSerializer,ExpertDetailSerializer,ReservationSerializer,ExpertAssignedServiceSerializer,BookingStatusUpdateSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import LoginSerializer
 from django.contrib.auth import login
@@ -25,6 +25,7 @@ from user_signup.serializers import LandingServiceSerializer
 from .serializers import ExpertSearchResultSerializer
 from decimal import Decimal
 import random
+from recommendation.models import SearchHistory
 
 
 User = get_user_model()
@@ -660,6 +661,11 @@ class ServiceSearchView(APIView):
         user = request.user
         if user.role != 'Customer':
             return Response({"error": "Only customers can search services."}, status=403)
+        
+        try:
+            customer = Customer.objects.get(email=user.email)
+        except Customer.DoesNotExist:
+            return Response({"error": "Customer  not found."}, status=404)
 
         cities = request.query_params.get('cities', '')
         services = request.query_params.get('services', '')
@@ -676,6 +682,12 @@ class ServiceSearchView(APIView):
         
         if services:
             service_list = [s.strip().lower() for s in services.split(',')]
+
+
+            for keyword in service_list:
+                SearchHistory.objects.create(customer=customer, keyword=keyword)
+
+
             service_filter = Q()
             for s in service_list:
                 service_filter |= Q(selected_service__iexact=s)
@@ -692,3 +704,69 @@ class ServiceSearchView(APIView):
 
         serializer = LandingServiceSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class CreateReservationView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Check if user is a customer
+        if request.user.role != 'Customer':
+            return Response({"error": "Only customers can make reservations."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = ReservationSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Reservation created successfully."}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class ExpertAssignedServicesView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'Expert':
+            return Response({"error": "Only experts can view assigned services."}, status=403)
+
+        expert = Expert.objects.get(email=request.user.email)
+        bookings = Booking.objects.filter(expert=expert).select_related('customer', 'task')
+
+        results = []
+        for booking in bookings:
+            results.append({
+                "customer_name": f"{booking.customer.firstname} {booking.customer.lastname}",
+                "city": booking.customer.city,
+                "date_time": booking.scheduled_date,
+                "amount": booking.task.price,
+                "service_category": booking.task.selected_service
+            })
+
+        serializer = ExpertAssignedServiceSerializer(results, many=True)
+        return Response(serializer.data)
+    
+class ExpertUpdateBookingStatusView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        if request.user.role != 'Expert':
+            return Response({"error": "Only experts can update booking status."}, status=403)
+
+        serializer = BookingStatusUpdateSerializer(data=request.data)
+        if serializer.is_valid():
+            booking = serializer.validated_data['booking']
+            new_status = serializer.validated_data['status']
+
+            # Check ownership
+            expert = Expert.objects.get(email=request.user.email)
+            if booking.expert != expert:
+                return Response({"error": "You are not authorized to update this booking."}, status=403)
+
+            # Update
+            booking.status = new_status
+            booking.save()
+
+            return Response({"message": f"Booking status updated to '{new_status}'."}, status=200)
+
+        return Response(serializer.errors, status=400)
