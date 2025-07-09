@@ -10,7 +10,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from math import radians, sin, cos, sqrt, asin
 from .models import Expert, Customer, Service, Review,Booking
-from .serializers import ExpertSerializer, CustomerSerializer, PasswordChangeSerializer,ServiceCreateSerializer,ServiceSerializer,ExpertDetailSerializer,ReservationSerializer,ExpertAssignedServiceSerializer,BookingStatusUpdateSerializer
+from .serializers import ExpertSerializer, CustomerSerializer, PasswordChangeSerializer,ServiceCreateSerializer,ServiceSerializer,ExpertDetailSerializer,ReservationSerializer,ExpertAssignedServiceSerializer,BookingStatusUpdateSerializer,BookedServiceSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import LoginSerializer
 from django.contrib.auth import login
@@ -770,3 +770,21 @@ class ExpertUpdateBookingStatusView(APIView):
             return Response({"message": f"Booking status updated to '{new_status}'."}, status=200)
 
         return Response(serializer.errors, status=400)
+    
+class CustomerBookedServicesView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role != 'Customer':
+            return Response({"error": "Only customers can access their bookings."}, status=403)
+
+        try:
+            customer = Customer.objects.get(email=user.email)
+        except Customer.DoesNotExist:
+            return Response({"error": "Customer not found."}, status=404)
+
+        bookings = Booking.objects.filter(customer=customer).select_related('task').order_by('-created_at')
+        serializer = BookedServiceSerializer(bookings, many=True)
+        return Response(serializer.data, status=200)

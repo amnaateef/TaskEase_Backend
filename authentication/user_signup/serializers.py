@@ -348,3 +348,13 @@ class BookingStatusUpdateSerializer(serializers.Serializer):
             raise serializers.ValidationError("Booking not found.")
         data['booking'] = booking
         return data
+    
+class BookedServiceSerializer(serializers.ModelSerializer):
+    service_category = serializers.CharField(source='task.selected_service', read_only=True)
+    price = serializers.DecimalField(source='task.price', max_digits=10, decimal_places=2, read_only=True)
+    time = serializers.DateTimeField(source='task.scheduled_for', read_only=True)
+    date = serializers.DateTimeField(source='created_at', read_only=True)
+
+    class Meta:
+        model = Booking
+        fields = ['service_category', 'price', 'time', 'date', 'status']

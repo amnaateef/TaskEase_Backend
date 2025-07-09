@@ -1,6 +1,6 @@
 from django.urls import path
-from .views import ExpertRecommendationView
+from .views import MLRecommendedServicesView
 
 urlpatterns = [
-    path('recommend-experts/', ExpertRecommendationView.as_view(), name='recommend_experts'),
+    path('recommend-experts/', MLRecommendedServicesView.as_view(), name='recommend_experts'),
 ]

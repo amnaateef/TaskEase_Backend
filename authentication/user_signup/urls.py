@@ -20,6 +20,7 @@ from .views import ServiceSearchView
 from .views import CreateReservationView
 from .views import ExpertAssignedServicesView
 from .views import ExpertUpdateBookingStatusView
+from .views import CustomerBookedServicesView
 
 
 urlpatterns = [
@@ -46,4 +47,5 @@ urlpatterns = [
     path('create-reservation/', CreateReservationView.as_view(), name='create-reservation'),
     path('expert/assigned-services/', ExpertAssignedServicesView.as_view(), name='expert-assigned-services'),
     path('expert/update-booking-status/', ExpertUpdateBookingStatusView.as_view(), name='expert-update-booking-status'),
+    path('customer-booked-services/', CustomerBookedServicesView.as_view(), name='customer_booked_services'),
 ]
