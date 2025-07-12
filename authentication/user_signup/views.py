@@ -735,6 +735,7 @@ class ExpertAssignedServicesView(APIView):
         results = []
         for booking in bookings:
             results.append({
+                "booking_id": booking.id,
                 "customer_name": f"{booking.customer.firstname} {booking.customer.lastname}",
                 "city": booking.customer.city,
                 "date_time": booking.scheduled_date,

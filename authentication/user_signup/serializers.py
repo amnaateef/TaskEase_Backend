@@ -331,6 +331,7 @@ class ReservationSerializer(serializers.Serializer):
         return booking
     
 class ExpertAssignedServiceSerializer(serializers.Serializer):
+    booking_id = serializers.IntegerField()
     customer_name = serializers.CharField()
     city = serializers.CharField()
     date_time = serializers.DateTimeField()
