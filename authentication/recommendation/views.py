@@ -301,7 +301,7 @@ class MLRecommendedServicesView(APIView):
 
             response.append({
                 "id": s.id,
-                "title": s.selected_service,
+                "selected_service": s.selected_service,
                 "description": s.description,
                 "price": s.price,
                 "distance_km": item["distance"],
@@ -309,7 +309,29 @@ class MLRecommendedServicesView(APIView):
                 "expert_name": f"{expert.firstname} {expert.lastname}",
                 "expert_rating": float(expert.ratings_average),
                 "cover_image": s.cover_image.url if s.cover_image else None,
-                "work_images": work_image_paths
+                "work_images": work_image_paths,
+                "expert_id": expert.id,
+                "city": s.city,
+                "latitude": s.latitude,
+                "longitude": s.longitude,
+                "expertise_level": s.expertise_level,
+                "years_of_experience": s.years_of_experience,
+                "client_present": s.client_present,
+                "use_tools": s.use_tools,
+                "trial_session": s.trial_session,
+                "late_arrival": s.late_arrival,
+                "same_day_cancel": s.same_day_cancel,
+                "rescheduling": s.rescheduling,
+                "partial_payment": s.partial_payment,
+                "inspection": s.inspection,
+                "currency": s.currency,
+                "hourly_rate": float(s.hourly_rate),
+                "weekend_rate": float(s.weekend_rate),
+                "bulk_discount": float(s.bulk_discount),
+                "time_slots": s.time_slots,
+                "scheduled_for": s.scheduled_for,
+                "created_at": s.created_at,
+                "updated_at": s.updated_at
             })
 
         return Response(response, status=200)
